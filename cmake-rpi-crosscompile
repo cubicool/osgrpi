@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+
+# This script will invoke CMake for you on a project with settings appropriate for
+# cross-compiling for the RaspberryPi. It wil also define OSG-centric variables,
+# suitable for actually compiling OpenSceneGraph itself.
+
+# NOTE! You will need to change the RPI_TOOLS_DIR and RPI_VC_DIR directories accordingly.
+# They're currently set to the values I used when building, to give you a hint as to what
+# they "should" be.
+
+# RPI_TOOLS_DIR: The directory where your "tools" git checkout is. You can find this project
+# here: https://github.com/raspberrypi/tools
+
+# RPI_VC_DIR: The directory where your "vc" directory is. This can either be a copy of what
+# physically exists in /opt/vc ON your Pi, or it can be the compiled result of the "userland"
+# project, also found on github: https://github.com/raspberrypi/userland
+
+TOOLCHAIN_FILE="${PWD}/Toolchain.cmake"
+RPI_TOOLS_DIR="/home/cubicool/sources/rpi/tools/arm-bcm2708/gcc-linaro-arm-linux-gnueabihf-raspbian"
+RPI_VC_DIR="/home/cubicool/sources/rpi/vc"
+
+function ToolchainFile() {
+cat <<EOF
+SET(CMAKE_SYSTEM_NAME Linux)
+SET(CMAKE_SYSTEM_VERSION 1)
+
+SET(RPI_TOOLS_DIR "${RPI_TOOLS_DIR}")
+SET(RPI_VC_DIR "${RPI_VC_DIR}")
+
+SET(CMAKE_C_COMPILER "${RPI_TOOLS_DIR}/bin/arm-linux-gnueabihf-gcc")
+SET(CMAKE_CXX_COMPILER "${RPI_TOOLS_DIR}/bin/arm-linux-gnueabihf-g++")
+
+SET(CMAKE_FIND_ROOT_PATH "${RPI_TOOLS_DIR}/bin")
+
+SET(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM ONLY)
+SET(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
+SET(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
+EOF
+}
+
+OPTIONS=(
+	-DCMAKE_INSTALL_PREFIX="${PWD}/install"
+	-DOPENGL_INCLUDE_DIR="${RPI_VC_DIR}/include"
+	-DOPENGL_egl_LIBRARY="${RPI_VC_DIR}/lib/libEGL.so"
+	-DOPENGL_gl_LIBRARY="${RPI_VC_DIR}/lib/libGLESv2.so"
+	-DOPENGL_LIBRARY="${RPI_VC_DIR}/lib/libGLESv2.so"
+	-DOPENTHREADS_ATOMIC_USE_MUTEX="ON"
+	-DOSG_GL1_AVAILABLE="OFF"
+	-DOSG_GL2_AVAILABLE="OFF"
+	-DOSG_GL3_AVAILABLE="OFF"
+	-DOSG_GLES1_AVAILABLE="ON"
+	-DOSG_GLES2_AVAILABLE="ON"
+	-DOSG_GL_DISPLAYLISTS_AVAILABLE="OFF"
+	-DOSG_GL_FIXED_FUNCTION_AVAILABLE="OFF"
+	-DOSG_GL_MATRICES_AVAILABLE="OFF"
+	-DOSG_GL_VERTEX_FUNCS_AVAILABLE="OFF"
+	-DOSG_WINDOWING_SYSTEM="NONE"
+	-DOSG_USE_QT="OFF"
+)
+
+rm -f "${TOOLCHAIN_FILE}"
+
+ToolchainFile > "${TOOLCHAIN_FILE}"
+
+cmake -DCMAKE_TOOLCHAIN_FILE="${TOOLCHAIN_FILE}" ${OPTIONS[*]} ${*}
+
